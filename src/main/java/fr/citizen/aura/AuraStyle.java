@@ -8,7 +8,9 @@ public enum AuraStyle {
     /** Deux spirales qui montent autour du joueur. */
     SPIRALE,
     /** Anneau au-dessus de la tête + petites particules qui tournent. */
-    HALO;
+    HALO,
+    /** Éclairs en zigzag qui crépitent autour du corps + lueur. */
+    ECLAIR;
 
     public String id() { return name().toLowerCase(Locale.ROOT); }
 

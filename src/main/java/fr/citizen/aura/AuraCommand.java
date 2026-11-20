@@ -42,7 +42,7 @@ public final class AuraCommand {
                                                     AuraStyle st = AuraStyle.parse(s);
                                                     if (st == null) {
                                                         c.getSource().sendFailure(Component.literal(
-                                                                "Style inconnu : " + s + " (orbite, spirale, halo)"));
+                                                                "Style inconnu : " + s + " (orbite, spirale, halo, eclair)"));
                                                         return 0;
                                                     }
                                                     return give(c, st);
@@ -97,13 +97,14 @@ public final class AuraCommand {
 
     private static int list(CommandContext<CommandSourceStack> c) {
         AuraData data = AuraData.get(c.getSource().getServer());
-        if (data.all().isEmpty()) {
+        if (data.all().isEmpty() && !fr.citizen.aura.api.CitizenAuraApi.hasAny()) {
             c.getSource().sendSuccess(() -> Component.literal("Aucune aura active.").withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
         StringBuilder sb = new StringBuilder("Auras :");
         data.all().values().forEach(e -> sb.append("\n - ").append(e.name()).append(" : ")
                 .append(AuraColors.describe(e.color())).append(" (").append(e.style().id()).append(")"));
+        fr.citizen.aura.api.CitizenAuraApi.describeAutomatic().forEach(line -> sb.append("\n - ").append(line));
         c.getSource().sendSuccess(() -> Component.literal(sb.toString()).withStyle(ChatFormatting.GOLD), false);
         return data.all().size();
     }

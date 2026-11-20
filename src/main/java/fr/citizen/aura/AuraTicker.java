@@ -25,10 +25,12 @@ public final class AuraTicker {
         int tick = server.getTickCount();
         if (tick % INTERVAL != 0) return;
         AuraData data = AuraData.get(server);
-        if (data.all().isEmpty()) return;
+        if (data.all().isEmpty() && !fr.citizen.aura.api.CitizenAuraApi.hasAny()) return;
 
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            // l'aura donnee par un admin (/aura donner) passe toujours avant une aura automatique (autre mod)
             AuraData.Entry e = data.get(p.getUUID());
+            if (e == null) e = fr.citizen.aura.api.CitizenAuraApi.automatic(p.getUUID());
             if (e == null || p.isSpectator() || p.isInvisible()) continue;
             // Sécurité : l'aura n'appartient qu'au joueur choisi (UUID + pseudo),
             // même si un proxy/mod donne le même UUID à plusieurs joueurs.
@@ -68,6 +70,30 @@ public final class AuraTicker {
                 }
                 double a = t * 1.5;
                 send(level, color(e, tick, 5), 0.5f, x + Math.cos(a) * 0.85, y + h * 0.5, z + Math.sin(a) * 0.85);
+            }
+            case ECLAIR -> {
+                // lueur legere autour du corps
+                double ga = rnd.nextDouble() * Math.PI * 2;
+                send(level, color(e, tick, 0), 0.9f, x + Math.cos(ga) * 0.4, y + rnd.nextDouble() * h, z + Math.sin(ga) * 0.4);
+                // un eclair en zigzag de la tete aux pieds, une fois sur deux (effet de crepitement)
+                if ((tick / INTERVAL) % 2 == 0) {
+                    double a = rnd.nextDouble() * Math.PI * 2;
+                    double px = x + Math.cos(a) * 0.55, pz = z + Math.sin(a) * 0.55, py = y + h + 0.35;
+                    int steps = 6;
+                    for (int s = 0; s < steps; s++) {
+                        double na = a + (rnd.nextDouble() - 0.5) * 0.9;
+                        double nr = 0.45 + rnd.nextDouble() * 0.35;
+                        double nx = x + Math.cos(na) * nr, nz = z + Math.sin(na) * nr, ny = py - (h + 0.35) / steps;
+                        for (int k = 0; k <= 2; k++) {
+                            double f = k / 3.0;
+                            send(level, color(e, tick, s), 0.55f, px + (nx - px) * f, py + (ny - py) * f, pz + (nz - pz) * f);
+                        }
+                        px = nx; py = ny; pz = nz; a = na;
+                    }
+                }
+                // etincelle qui tourne autour de la tete
+                double sa = t * 1.8;
+                send(level, color(e, tick, 7), 0.5f, x + Math.cos(sa) * 0.5, y + h + 0.15, z + Math.sin(sa) * 0.5);
             }
             case HALO -> {
                 for (int i = 0; i < 6; i++) {
