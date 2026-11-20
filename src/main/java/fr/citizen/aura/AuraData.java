@@ -36,6 +36,13 @@ public class AuraData extends SavedData {
         return had;
     }
 
+    public int clear() {
+        int n = auras.size();
+        auras.clear();
+        setDirty();
+        return n;
+    }
+
     private static AuraData load(CompoundTag tag, HolderLookup.Provider registries) {
         AuraData data = new AuraData();
         ListTag list = tag.getList("auras", Tag.TAG_COMPOUND);

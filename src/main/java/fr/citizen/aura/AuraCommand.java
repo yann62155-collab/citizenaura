@@ -14,11 +14,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import java.util.Arrays;
-import java.util.Collection;
 
 /**
- * /aura donner <joueurs> <couleur> [style]
- * /aura retirer <joueurs>
+ * /aura donner <joueur> <couleur> [style]   (un seul joueur à la fois)
+ * /aura retirer <joueur>
+ * /aura vider
  * /aura liste
  * /aura couleurs
  */
@@ -30,7 +30,7 @@ public final class AuraCommand {
         d.register(Commands.literal("aura")
                 .requires(src -> src.hasPermission(2))
                 .then(Commands.literal("donner")
-                        .then(Commands.argument("joueurs", EntityArgument.players())
+                        .then(Commands.argument("joueur", EntityArgument.player())
                                 .then(Commands.argument("couleur", StringArgumentType.word())
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(AuraColors.NAMED.keySet(), b))
                                         .executes(c -> give(c, AuraStyle.ORBITE))
@@ -48,8 +48,9 @@ public final class AuraCommand {
                                                     return give(c, st);
                                                 })))))
                 .then(Commands.literal("retirer")
-                        .then(Commands.argument("joueurs", EntityArgument.players())
+                        .then(Commands.argument("joueur", EntityArgument.player())
                                 .executes(AuraCommand::remove)))
+                .then(Commands.literal("vider").executes(AuraCommand::clear))
                 .then(Commands.literal("liste").executes(AuraCommand::list))
                 .then(Commands.literal("couleurs").executes(c -> {
                     c.getSource().sendSuccess(() -> Component.literal("Couleurs : " + String.join(", ", AuraColors.NAMED.keySet())
@@ -59,7 +60,7 @@ public final class AuraCommand {
     }
 
     private static int give(CommandContext<CommandSourceStack> c, AuraStyle style) throws CommandSyntaxException {
-        Collection<ServerPlayer> targets = EntityArgument.getPlayers(c, "joueurs");
+        ServerPlayer target = EntityArgument.getPlayer(c, "joueur");
         String raw = StringArgumentType.getString(c, "couleur");
         Integer color = AuraColors.parse(raw);
         if (color == null) {
@@ -67,26 +68,31 @@ public final class AuraCommand {
             return 0;
         }
         AuraData data = AuraData.get(c.getSource().getServer());
-        for (ServerPlayer p : targets) {
-            data.set(p.getUUID(), new AuraData.Entry(p.getGameProfile().getName(), color, style));
-            p.sendSystemMessage(Component.literal("✦ Une aura " + AuraColors.describe(color) + " vous entoure.")
-                    .withStyle(ChatFormatting.GOLD));
-        }
-        int n = targets.size();
+        String name = target.getGameProfile().getName();
+        data.set(target.getUUID(), new AuraData.Entry(name, color, style));
+        target.sendSystemMessage(Component.literal("✦ Une aura " + AuraColors.describe(color) + " vous entoure.")
+                .withStyle(ChatFormatting.GOLD));
         c.getSource().sendSuccess(() -> Component.literal("Aura " + AuraColors.describe(color) + " (" + style.id()
-                + ") donnée à " + n + " joueur(s).").withStyle(ChatFormatting.GOLD), true);
-        return n;
+                + ") donnée à " + name + " uniquement.").withStyle(ChatFormatting.GOLD), false);
+        return 1;
     }
 
     private static int remove(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
-        Collection<ServerPlayer> targets = EntityArgument.getPlayers(c, "joueurs");
+        ServerPlayer target = EntityArgument.getPlayer(c, "joueur");
         AuraData data = AuraData.get(c.getSource().getServer());
-        int n = 0;
-        for (ServerPlayer p : targets) if (data.remove(p.getUUID())) n++;
-        int count = n;
-        c.getSource().sendSuccess(() -> Component.literal("Aura retirée à " + count + " joueur(s).")
-                .withStyle(ChatFormatting.GOLD), true);
-        return count;
+        boolean had = data.remove(target.getUUID());
+        String name = target.getGameProfile().getName();
+        c.getSource().sendSuccess(() -> Component.literal(had ? "Aura retirée à " + name + "."
+                : name + " n'avait pas d'aura.").withStyle(ChatFormatting.GOLD), false);
+        return had ? 1 : 0;
+    }
+
+    private static int clear(CommandContext<CommandSourceStack> c) {
+        AuraData data = AuraData.get(c.getSource().getServer());
+        int n = data.clear();
+        c.getSource().sendSuccess(() -> Component.literal("Toutes les auras ont été retirées (" + n + ").")
+                .withStyle(ChatFormatting.GOLD), false);
+        return n;
     }
 
     private static int list(CommandContext<CommandSourceStack> c) {

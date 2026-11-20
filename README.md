@@ -4,8 +4,9 @@ Mod **serveur uniquement** : à mettre dans le dossier `mods` du serveur BoxToPl
 Particules vanilla envoyées par le serveur → visibles par les joueurs PC **et** console (Xbox via Geyser).
 
 ## Commandes (admin, permission niveau 2 / OP)
-- `/aura donner <joueur> <couleur> [style]` — ex : `/aura donner Ishawakiii or orbite`
+- `/aura donner <joueur> <couleur> [style]` — un seul joueur à la fois, ex : `/aura donner Ishawakiii or orbite`
 - `/aura retirer <joueur>`
+- `/aura vider` — retire toutes les auras
 - `/aura liste`
 - `/aura couleurs`
 

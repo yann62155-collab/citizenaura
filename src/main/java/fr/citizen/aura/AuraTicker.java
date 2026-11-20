@@ -2,11 +2,13 @@ package fr.citizen.aura;
 
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.joml.Vector3f;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Dessine les auras. Uniquement des particules "dust" vanilla envoyées par le serveur :
@@ -14,6 +16,7 @@ import org.joml.Vector3f;
  */
 public final class AuraTicker {
     private static final int INTERVAL = 2; // toutes les 2 ticks (10 fois/s)
+    private static final double VIEW_DIST = 48.0;
 
     private AuraTicker() {}
 
@@ -27,11 +30,17 @@ public final class AuraTicker {
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             AuraData.Entry e = data.get(p.getUUID());
             if (e == null || p.isSpectator() || p.isInvisible()) continue;
-            draw(p.serverLevel(), p, e, tick);
+            // Sécurité : l'aura n'appartient qu'au joueur choisi (UUID + pseudo),
+            // même si un proxy/mod donne le même UUID à plusieurs joueurs.
+            if (!p.getGameProfile().getName().equalsIgnoreCase(e.name())) continue;
+            List<ServerPlayer> viewers = new ArrayList<>();
+            for (ServerPlayer v : p.serverLevel().players())
+                if (v.distanceToSqr(p) < VIEW_DIST * VIEW_DIST) viewers.add(v);
+            draw(viewers, p, e, tick);
         }
     }
 
-    private static void draw(ServerLevel level, ServerPlayer p, AuraData.Entry e, int tick) {
+    private static void draw(List<ServerPlayer> level, ServerPlayer p, AuraData.Entry e, int tick) {
         double x = p.getX(), y = p.getY(), z = p.getZ();
         float h = p.getBbHeight();
         float t = tick * 0.12f;
@@ -79,9 +88,11 @@ public final class AuraTicker {
         return Mth.hsvToRgb(hue, 1.0f, 1.0f);
     }
 
-    private static void send(ServerLevel level, int rgb, float size, double x, double y, double z) {
+    private static void send(List<ServerPlayer> viewers, int rgb, float size, double x, double y, double z) {
         Vector3f c = new Vector3f(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
-        // Envoyé à tous les joueurs proches (32 blocs), y compris le joueur lui-même
-        level.sendParticles(new DustParticleOptions(c, size), x, y, z, 1, 0, 0, 0, 0);
+        DustParticleOptions opt = new DustParticleOptions(c, Math.min(4.0f, size * 1.5f));
+        // force = true : visible même si le joueur a mis les particules sur "Réduites"/"Minimales"
+        for (ServerPlayer v : viewers)
+            v.serverLevel().sendParticles(v, opt, true, x, y, z, 1, 0, 0, 0, 0);
     }
 }
